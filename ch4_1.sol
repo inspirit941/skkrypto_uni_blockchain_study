@@ -23,8 +23,8 @@ contract OreOrecoin{
 	//송금
 	function transfer(address _to, uint256 _value) public {
 	//부정송금 확인
-	if (balanceOf[msg.sender] < _value) throw;
-	if (balanceOf[_to] + _value < balanceOf[_to]) throw;
+	require(balanceOf[msg.sender] >= _value);
+	require( _value >= 0);
 	// 송금하는 주소와 받는 주소의 잔액 갱신
 	balanceOf[msg.sender] -= _value;
 	balanceOf[_to] += _value;

@@ -12,7 +12,10 @@ contract OreOrecoin{
 	address public owner; //소유자 주소
 
 	//수식자
-	modifier onlyOwner() {if (msg.sender != owner) throw; _;}
+	modifier onlyOwner() {
+		require(msg.sender == owner); 
+		_;
+	}
 
 	// 이벤트 알림
 	event Transfer(address indexed from, address indexed to, uint256 value);
@@ -47,12 +50,12 @@ contract OreOrecoin{
 	//송금
 	function transfer(address _to, uint256 _value) public{
 	//부정송금 확인
-	if (balanceOf[msg.sender] < _value) throw;
-	if (balanceOf[_to] + _value < balanceOf[_to]) throw;
+	require(balanceOf[msg.sender] >= _value);
+	require( _value >= 0);
 	//블랙리스트에 존재하는 주소는 입출금 불가
 	if (blackList[msg.sender] >0){
 		RejectPayfromBlacklist(msg.sender, _to, _value);
-	} else if (blackList[_to]>0){
+	} else if (blackList[_to]> 0){
 		RejectPaytoBlacklist(msg.sender, _to, _value);
 	} else {
 	// 송금하는 주소와 받는 주소의 잔액 갱신

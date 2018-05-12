@@ -62,8 +62,8 @@ contract OreOrecoin{
 	//송금
 	function transfer(address _to, uint256 _value) public{
 		//부정송금 확인
-		if (balanceOf[msg.sender] < _value) throw;
-		if (balanceOf[_to] + _value < balanceOf[_to]) throw;
+		require(balanceOf[msg.sender] >= _value);
+		require( _value >= 0);
 		//블랙리스트에 존재하는 주소는 입출금 불가
 		if (blackList[msg.sender] >0){
 			RejectPayfromBlacklist(msg.sender, _to, _value);
