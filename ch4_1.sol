@@ -1,18 +1,18 @@
 pragma solidity ^0.4.20;
 
 contract OreOrecoin{
-	//»óÅÂº¯¼ö ¼±¾ğ
-	string public name; //ÅäÅ«ÀÌ¸§
-	string public symbol; //ÅäÅ«´ÜÀ§
-	uint8 public decimals; //¼Ò¼öÁ¡ ÀÌÇÏ ÀÚ¸´¼ö
-	uint256 public totalsupply; //ÅäÅ« ÃÑ·®
+	//ìƒíƒœë³€ìˆ˜ ì„ ì–¸
+	string public name; //í† í°ì´ë¦„
+	string public symbol; //í† í°ë‹¨ìœ„
+	uint8 public decimals; //ì†Œìˆ˜ì  ì´í•˜ ìë¦¿ìˆ˜
+	uint256 public totalsupply; //í† í° ì´ëŸ‰
 
-	mapping (address => uint256) public balanceOf; //°¢ ÁÖ¼ÒÀÇ ÀÜ°í
+	mapping (address => uint256) public balanceOf; //ê° ì£¼ì†Œì˜ ì”ê³ 
 
-	// ÀÌº¥Æ® ¾Ë¸²
+	// ì´ë²¤íŠ¸ ì•Œë¦¼
 	event Transfer(address indexed from, address indexed to, uint256 value);
 
-	// »ı¼ºÀÚ
+	// ìƒì„±ì
 	function OreOreCoin(uint256 _supply, string _name, string _symbol, uint8 _decimals) public {
 		balanceOf[msg.sender] =_supply;
 		name = _name;
@@ -20,15 +20,15 @@ contract OreOrecoin{
 		decimals = _decimals;
 		totalsupply = _supply;
 	}
-	//¼Û±İ
+	//ì†¡ê¸ˆ
 	function transfer(address _to, uint256 _value) public {
-	//ºÎÁ¤¼Û±İ È®ÀÎ
+	//ë¶€ì •ì†¡ê¸ˆ í™•ì¸
 	if (balanceOf[msg.sender] < _value) throw;
 	if (balanceOf[_to] + _value < balanceOf[_to]) throw;
-	// ¼Û±İÇÏ´Â ÁÖ¼Ò¿Í ¹Ş´Â ÁÖ¼ÒÀÇ ÀÜ¾× °»½Å
+	// ì†¡ê¸ˆí•˜ëŠ” ì£¼ì†Œì™€ ë°›ëŠ” ì£¼ì†Œì˜ ì”ì•¡ ê°±ì‹ 
 	balanceOf[msg.sender] -= _value;
 	balanceOf[_to] += _value;
-	//ÀÌº¥Æ® ¾Ë¸²
+	//ì´ë²¤íŠ¸ ì•Œë¦¼
 	Transfer(msg.sender, _to, _value);
 	}
 }
