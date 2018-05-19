@@ -55,7 +55,7 @@ contract ERC20Interface {
 }
 // 시간관계상 ERC20의 기본 함수를 전부 만들지 못해 Skkcoin is ERC20Interface로 토큰을 만들지 못함.
 
-contract Skkcoin {
+contract Skkcoin is ERC20Interface{
     string public name;
     string public symbol;
     uint8 public decimals;
@@ -68,6 +68,8 @@ contract Skkcoin {
     using SafeMath for uint256;
     
     mapping (address => uint256) public balanceOf;
+    mapping (address => mapping(address => uint256)) internal allowed;
+    //allowed[누가][누구에게] = '얼마' 의 인출 권한을 주는가
     
     constructor(uint256 _supply, string _name, string _symbol, uint8 _decimals) public {
         name = _name;
@@ -77,30 +79,44 @@ contract Skkcoin {
         owner = msg.sender;
         balanceOf[msg.sender] = totalsupply; 
     }
-    // function totalSupply() constant public returns (uint _supply);
-    // function balanceOf( address _who ) constant public returns (uint _value);
-    
-    function transfer( address _to, uint _value) public returns (bool){
-        
-        require(balanceOf[msg.sender] >= _value);
-    require(balanceOf[_to] + _value >= balanceOf[_to]);
-    //계좌액수 오버플로우 방지 등등이 목적인듯
-    balanceOf[msg.sender] = balanceOf[msg.sender].sub(_value);
-    balanceOf[_to] = balanceOf[_to].sub(_value);
-    
-    emit Transfer(msg.sender, _to, _value);
-    return true;
+    function totalSupply() constant public view returns (uint256){
+     return totalsupply_;   
+    }
+    function balanceOf(address _who) constant public view returns (uint256){
+        return balanceOf[_who];
     }
     
-    // function approve( address _spender, uint _value ) public returns (bool _success){
+    function transfer( address _to, uint _value) public returns (bool){
+        require(balanceOf[msg.sender] >= _value);
+        require(balanceOf[_to] + _value >= balanceOf[_to]);
+        //계좌액수 오버플로우 방지 등등이 목적인듯
+        balanceOf[msg.sender] = balanceOf[msg.sender].sub(_value);
+        balanceOf[_to] = balanceOf[_to].sub(_value);
+        
+        emit Transfer(msg.sender, _to, _value);
+        return true;
+    }
     
-    // }
-    // function allowance( address _owner, address _spender ) constant public returns (uint _allowance){
+    function approve( address _spender, uint _value ) public returns (bool _success){
+        allowed[msg.sender][_spender] = _value;
+        Approval(msg.sender, _spender, _value);
+        return true;
+    }
+    function allowance( address _owner, address _spender ) constant public view returns (uint _allowance){
+        return allowed[_owner][_spender];
+    }
+    function transferFrom( address _from, address _to, uint _value) public returns (bool _success){
+        require(_to !=address(0));
+        require(_value <= balanceOf[_from]);
+        require(_value <= allowed[_from][msg.sender])
         
-    // }
-    // function transferFrom( address _from, address _to, uint _value) public returns (bool _success){
+        balanceOf[_from] = balanceOf[_from].sub(_value);
+        balanceOf[_to] = balanceOf[_to].add(_value);
+        allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
         
-    // }
+        emit Transfer(_from, _to, _value);
+        return true;
+    }
     
     event Transfer( address indexed _from, address indexed _to, uint _value);
     event Approval( address indexed _owner, address indexed _spender, uint _value);
