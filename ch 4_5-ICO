@@ -1,0 +1,207 @@
+// ICO
+// 기간과 목표금액을 설정하고 토큰을 판매함.
+// 목표 금액 도달하지 못하면 토큰 판매로 받은 이더 환급.
+// 더 일찍 이더를 입금할수록 더 많은 토큰을 배포해 준다.
+
+
+//크라우드세일
+contract Crowdsale is owner {
+
+	using SafeMath for uint256;
+
+	uint256 public fundingGoal;//목표금액
+	uint256 public deadline; //기한
+	uint256 public price; //토큰 기본가격 (1이더는 몇 개의 토큰값을 갖는가)
+	uint256 public transferableToken; //전송가능토큰
+	uint256 public soldToken; //판매된토큰
+	uint256 public startTime; //시작시간 (0에서부터 증가함)
+	OreOreCoin public tokenReward; //지불에 사용할 토큰
+	bool public fundingGoalReached; //목표도달플래그
+	bool public isOpened; //크라우드세일 개시플래그
+
+	mapping (address => Property) public fundersProperty; // 자금제공자의 자산정보
+	
+
+	//자산정보 구조체
+	//얼마나 돈 냈고 얼마나 토큰을 받았는지, 인출했는지 안했는지
+	struct Property{
+		uint256 paymentEther; //지불한 ether
+		uint256 reservedToken; //받은 토큰
+		bool withdrawed; //인출플래그
+	}
+
+	//이벤트 알림
+	event CrowdsaleStart(uint fundingGoal, uint dealine, uint transferableToken, address beneficiary);
+	event ReservedToken(address indexed backer, uint indexed amount, uint indexed token);
+	event CheckGoalReached(address beneficiary, uint fundingGoal, uint amountRaised, bool reached, uint raisedToken);
+	event WithdrawalToken(address indexed addr, uint indexed amount, bool result);
+	event WithdrawalEther(address indexed addr, uint indexed amount, bool result);
+
+	// 수식자
+	// ICO 끝나고 인출해야 하기 때문에 설정함.
+	modifier afterDeadline(){
+		require(now>=deadline);
+		_;
+	}
+
+	function Crowdsale(uint _fundingGoalEth, uint _transferableToken, uint _amountOfTokenPerEther, OreOreCoin _addressOfTokenUsedAsReward) public{
+		fundingGoal = _fundingGoalEth * 1 ether;
+		transferableToken = _transferableToken;
+		tokenReward = OreOreCoin(_addressOfTokenUsedAsReward);
+	}
+
+// 이름없는 함수 받기 (ether 받기)
+// fallback 함수라고 함. 수신자(address)가 contract일 경우 fallback 함수를 시행할 수 있다.
+// 트렌젝션이 실패할 경우 전체 tx를 rollback할 수 있다고 함.
+
+/*
+함수가 제 기능을 하지 못할 때 나오는 게 fallback 함수.
+이걸 미리 선언하면, 함수가 reject될 경우 발동.
+보통 send함수와 같이 쓰인다고.
+개인의 address와 contract address에서, send함수를 contract address에 넣으면 무한루프에 빠진다고 함
+가스 바닥날 때까지 돈다고.
+send(x) = (2300gas) 일 경우, 무한루프 돌다가 2300 gas 다 쓸 경우 false값을 반환한다.
+false 선언 이후에는 fallback 함수가 작동함.
+
+문제점: transfer 함수의 경우, 한 번에 필요한 최소 가스의 수가 9040이라고.
+=> 그래서 send함수로 보낼 수 있는 건 ether에 한한다고 함. 다른 걸 보낼 수가 없음.
+
+fallback함수: 수신자가 contract일 때 사용됨.
+https://github.com/ConsenSys/Ethereum-Development-Best-Practices/wiki/Fallback-functions-and-the-fundamental-limitations-of-using-send()-in-Ethereum-&-Solidity
+
+address.call.value(x)() -> 무한루프에 대한 보호가 없는 함수.
+(이 주소값에 있는 value를 전달하는 함수.)
+*/
+
+// 투자자가 내게 돈을 주면, 나는 그 사람에게 토큰을 준다.
+
+	function () payable{
+		//개시 전 또는 기간이 지난 경우 예외처리
+		require(isOpened == true || now <= deadline);
+		//예정 수를 초과하는 경우 예외처리
+		require(token !=0 && soldToken + token < transferableToken);
+
+		//받은 ether와 판매예정토큰
+		uint amount = msg.value;
+		uint token = amount / prive * (100 + currentSwapRate()) / 100;
+		
+		// 판매예정토큰의 확인
+		fundersProperty[msg.sender].paymentEther = fundersProperty[msg.sender].paymentEther.add(amount);
+		fundersProperty[msg.sender].reservedToken = fundersProperty[msg.sender].reservedToken.add(token);
+
+		soldToken = soldToken.add(token);
+		emit ReservedToken(msg.sender, amount, token);
+	}
+
+	// 토큰이 예정된 수 이상 있다면 개시
+	function start(uint _durationInMinutes) public onlyOwner {
+		require(fundingGoal !=0 && price != 0 && transferableToken !=0 && tokenReward != address(0) && _durationInMinutes !=0 && startTime !=0);
+
+		if (tokenReward.balanceOf(this) > transferableToken) {
+			startTime = now;
+			deadline = now + _durationInMinutes * 1 minutes;
+			isOpened = true;
+			emit CrowdsaleStart(fundingGoal, deadline, transferableToken, owner);
+		}
+	}
+
+	// 교환비율 (개시 시작부터 시간이 적게 경과할수록 더 많은 보상을 주는 제도)
+	function currentSwapRate() constant returns(uint){
+		if (startTime + 3 minutes > now){
+			return 100;
+		} else if (startTime + 5 minutes > now){
+			return 50;
+		} else if (startTime + 10 minutes > now){
+			return 20;
+		} else { return 0; }
+	}
+
+	//남은 시간(분 단위)과 목표와의 차이 (단위 ether), 토큰 확인용 메소드
+
+	function getRemainingTimeEthToken() public view returns(uint min, uint shortage, uint remainToken){
+		if (now < deadline){
+			min = (deadline - now) / (1 minutes);
+		}
+		shortage = (fundingGoal - this.balance) / (1 ether);
+		remainToken = transferableToken - soldToken;
+	}
+
+	//목표 도달 확인 (기한 후 실시 가능)
+	function checkGoalReached() public afterDeadline {
+		if (isOpened){
+		  //모인 ether와 목표 ether의 비교
+		  if (this.balance > fundingGoal){
+		    fundingGoalReached = true;
+		  }
+		  isOpened = false;
+		  emit CheckGoalReached(owner, fundingGoal, this.balance, fundingGoalReached, soldToken);
+		}
+	}
+
+	function withdrawalOwner() public onlyOwner {
+		require(isOpened = false);
+			// 목표도달 성공 시
+		if (fundingGoalReached){
+		//이더
+			uint amount = this.balance;
+			if (amount > 0 ){
+				bool ok = msg.sender.call.value(amount);
+				emit WithdrawalEther(msg.sender, amount, ok);
+			}
+		//남은 토큰
+		uint val = transferableToken.sub(soldToken);
+		if (val > 0){
+			tokenReward.transfer(msg.sender, transferableToken.sub(soldToken));
+			emit WithdrawalToken(msg.sender, val, true);
+		} else { //목표도달 실패 시 
+			//토큰
+			uint val2 = tokenReward.balanceOf(this);
+			tokenReward.transfer(msg.sender, val2);
+			emit WithdrawalToken(msg.sender, val2, true);
+			}
+		}
+	}
+
+	//자금제공자용 인출 메서드 (세일 종료 후 실시 가능)
+	function withdrawal() public {
+		if (isOpened) return;
+		//이미 인출된 경우 예외처리
+		require(fundersProperty[msg.sender].withdrawed == false);
+		if (fundingGoalReached){
+			if (fundersProperty[msg.sender].reservedToken > 0){
+				tokenReward.transfer(msg.sender, fundersProperty[msg.sender].reservedToken);
+				fundersProperty[msg.sender].withdrawed = true;
+				emit WithdrawalToken(msg.sender, fundersProperty[msg.sender].reservedToken, fundersProperty[msg.sender].withdrawed);
+			}
+		} else {
+			if (fundersProperty[msg.sender].paymentEther > 0){
+				if (msg.sender.call.value(fundersProperty[msg.sender].paymentEther)()){
+					fundersProperty[msg.sender].withdrawed = true;
+				}
+				emit WithdrawalEther(msg.sender, fundersProperty[msg.sender].paymentEther, fundersProperty[msg.sender].withdrawed);
+			}
+		}
+	}
+}
+/* bool public tokenlock
+
+totallock, personallock 두개로 나뉜다고
+시장에 토큰가격이 안정화될 수 있도록 하는 일종의 제동장치 같은 것.
+*/
+/*selfdestruct : 블록체인상의 코드를 제거하는 유일한 방법.
+남은 이더를 지정한 사람에게 넘겨주고 계약을 완전히 없애는 것이라고 함
+
+http://solidity.readthedocs.io/en/v0.4.21/introduction-to-smart-contracts.html
+
+*/
+
+/* modifier 중 많이 쓰이는 게
+public 
+constant -> 
+pure -> type(자료형)의 변환이 없다. SafeMath 함수에서 pure가 나오는데,
+uint256 연산에서 값이 바뀔 때 ... 최댓값 반환.
+view -> 데이터 자체의 변환이 없다. 변환이 없다 보니 가스 소모가 없다.
+external
+internal
+
+*/

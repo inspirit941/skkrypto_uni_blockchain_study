@@ -1,5 +1,49 @@
+pragma solidity ^0.4.23;
+library SafeMath {
+
+  /**
+  * @dev Multiplies two numbers, throws on overflow.
+  */
+  function mul(uint256 a, uint256 b) internal pure returns (uint256 c) {
+    if (a == 0) {
+      return 0;
+    }
+    c = a * b;
+    assert(c / a == b);
+    return c;
+  }
+
+  /**
+  * @dev Integer division of two numbers, truncating the quotient.
+  */
+  function div(uint256 a, uint256 b) internal pure returns (uint256) {
+    // assert(b > 0); // Solidity automatically throws when dividing by 0
+    // uint256 c = a / b;
+    // assert(a == b * c + a % b); // There is no case in which this doesn't hold
+    return a / b;
+  }
+
+  /**
+  * @dev Subtracts two numbers, throws on overflow (i.e. if subtrahend is greater than minuend).
+  */
+  function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+    assert(b <= a);
+    return a - b;
+  }
+
+  /**
+  * @dev Adds two numbers, throws on overflow.
+  */
+  function add(uint256 a, uint256 b) internal pure returns (uint256 c) {
+    c = a + b;
+    assert(c >= a);
+    return c;
+  }
+}
+
+
 //회원관리용 계약
-contract Members is Owned {
+contract Members is Owner {
   //상태변수 선언
   address public coin; //토큰 주소
   MemberStatus[] public status; //회원 등급 배열
@@ -14,26 +58,29 @@ contract Members is Owned {
   }
   struct History{
     uint256 times;//거래횟수
-    unit256 sum;//거래금액
+    uint256 sum;//거래금액
     uint256 statusIndex;//등급 인덱스
   }
 
   //토큰 한정 메소드용 수식자
   modifier onlyCoin(){
+  //코인 주소를 설정하면 이 코인에서만 함수를 쓸 수 있다.
     require(msg.sender ==coin);
+    _;
   }
 
   //토큰 주소 설정
   function setCoin(address _addr) onlyOwner(){
     coin = _addr;
   }
-  //회원 등급 추가
+
+  //새 회원 등급 추가
   function pushStatus(string _name, uint256 _times, uint256 _sum, int8 rate) public onlyOwner(){
     status.push(MemberStatus({
     name : _name,
     times : _times,
     sum : _sum,
-    rate : _rate
+    rate : rate
     }));
   }
 
@@ -48,6 +95,7 @@ contract Members is Owned {
   }
 
   //거래내역 갱신
+  //회원이 거래를 새로 할 때마다 갱신됨. 
   function updateHistory(address _member, uint256 _value) public onlyCoin(){
     tradingHistory[_member].times = tradingHistory[_member].times.add(1);
     tradingHistory[_member].sum = tradingHistory[_member].sum.add(_value);
