@@ -14,14 +14,14 @@ contract KeyValueStore{
     function setValue(string _value1, string _value2) constant returns (uint256) {
     	Obj[keyIndex].value1 = _value1;
     	Obj[keyIndex].value2 = _value2;
-    	KeyIndex ++ //SafeMAth 써서 overflow 방지해야 하지 않을까
+    	keyIndex++; //SafeMAth 써서 overflow 방지해야 하지 않을까
     	return keyIndex;
     }
     //키에 대한 값1을 가져오는 함수
-    function getValue1(uint _key) constant returns (string){
+    function getValue1(uint _key) public view returns (string){
     	return Obj[_key].value1;
     }
-    function getValue2(uint _key) constant returns (string){
+    function getValue2(uint _key) public view returns (string){
     	return Obj[_key].value2;
     }
 }

@@ -79,10 +79,11 @@ contract Skkcoin is ERC20Interface{
         owner = msg.sender;
         balanceOf[msg.sender] = totalsupply; 
     }
-    function totalSupply() constant public view returns (uint256){
-     return totalsupply_;   
+    
+    function totalSupply() constant public returns (uint256){
+      return totalsupply;   
     }
-    function balanceOf(address _who) constant public view returns (uint256){
+    function balanceOf(address _who) public view returns (uint256){
         return balanceOf[_who];
     }
     
@@ -99,16 +100,16 @@ contract Skkcoin is ERC20Interface{
     
     function approve( address _spender, uint _value ) public returns (bool _success){
         allowed[msg.sender][_spender] = _value;
-        Approval(msg.sender, _spender, _value);
+        emit Approval(msg.sender, _spender, _value);
         return true;
     }
-    function allowance( address _owner, address _spender ) constant public view returns (uint _allowance){
+    function allowance( address _owner, address _spender ) constant public returns (uint _allowance){
         return allowed[_owner][_spender];
     }
     function transferFrom( address _from, address _to, uint _value) public returns (bool _success){
         require(_to !=address(0));
         require(_value <= balanceOf[_from]);
-        require(_value <= allowed[_from][msg.sender])
+        require(_value <= allowed[_from][msg.sender]);
         
         balanceOf[_from] = balanceOf[_from].sub(_value);
         balanceOf[_to] = balanceOf[_to].add(_value);
